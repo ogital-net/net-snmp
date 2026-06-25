@@ -19,7 +19,9 @@
  */
 config_require(ip-forward-mib/data_access/route_common);
 
-#if defined( linux )
+#if defined(HAVE_VPP_DATAPLANE)
+config_require(ip-forward-mib/data_access/route_vpp);
+#elif defined( linux )
 config_require(ip-forward-mib/data_access/route_linux);
 config_require(ip-forward-mib/data_access/route_ioctl);
 #elif defined( freebsd7 ) || defined( netbsd5 ) || defined( openbsd4 ) || defined( dragonfly ) || defined( darwin )

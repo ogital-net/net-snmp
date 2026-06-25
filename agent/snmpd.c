@@ -139,6 +139,10 @@
 
 #include <net-snmp/agent/mib_modules.h>
 
+#ifdef HAVE_VPP_DATAPLANE
+#include "mibgroup/if-mib/data_access/interface_vpp.h"
+#endif
+
 #include <net-snmp/agent/agent_trap.h>
 
 #include <net-snmp/agent/netsnmp_close_fds.h>
@@ -1286,6 +1290,13 @@ receive(void)
         NETSNMP_LARGE_FD_ZERO(&writefds);
         NETSNMP_LARGE_FD_ZERO(&exceptfds);
         block = 0;
+#ifdef HAVE_VPP_DATAPLANE
+        /*
+         * Drain pending VAPI messages (non-blocking) so VPP's memclnt
+         * keepalives get answered and the idle VAPI session is not reaped.
+         */
+        vapi_pump();
+#endif
         snmp_select_info2(&numfds, &readfds, tvp, &block);
         if (block == 1) {
             tvp = NULL;         /* block without timeout */

@@ -1177,6 +1177,13 @@ NETSNMP_ARG_WITH(elf,
 NETSNMP_ARG_WITH(nl,
   [AS_HELP_STRING([--with-nl],[use libnl to get netlink data (linux only).])])
 
+NETSNMP_ARG_WITH(vpp,
+  [AS_HELP_STRING([--with-vpp[[=DIR]]],
+    [replace kernel interface/route/ARP lookups with VPP VAPI calls.
+     DIR is the VPP install prefix (default /usr).])],
+  [],
+  [with_vpp="no"])
+
 NETSNMP_ARG_WITH(libwrap,
   [  --with-libwrap[=LIBPATH]  Compile in libwrap (tcp_wrappers) support.],
   [],

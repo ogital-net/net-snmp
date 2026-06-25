@@ -18,7 +18,9 @@
  *    be handled in the *_hpux.h header file.
  */
 config_require(ip-mib/data_access/ipaddress_common);
-#if defined( linux )
+#if defined(HAVE_VPP_DATAPLANE)
+config_require(ip-mib/data_access/ipaddress_vpp);
+#elif defined( linux )
 config_require(ip-mib/data_access/ipaddress_linux);
 #elif defined( solaris2 )
 config_require(ip-mib/data_access/ipaddress_solaris2);

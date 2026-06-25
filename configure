@@ -1099,6 +1099,8 @@ with_elf
 enable_elf
 with_nl
 enable_nl
+with_vpp
+enable_vpp
 with_libwrap
 enable_libwrap
 with_zlib
@@ -2091,6 +2093,9 @@ Network Buffers:
   --with-client-recv-buf=ARG    Similar as previous options, but for the send buffer
   --without-elf           use elf libraries
   --with-nl               use libnl to get netlink data (linux only).
+  --with-vpp[=DIR]        replace kernel interface/route/ARP lookups with VPP
+                          VAPI calls. DIR is the VPP install prefix (default
+                          /usr).
   --with-libwrap=LIBPATH  Compile in libwrap (tcp_wrappers) support.
   --with-zlib=DIR         use libz in DIR
   --with-bzip2=DIR        use libbz2 in DIR
@@ -16792,6 +16797,23 @@ fi
 
 
 
+# Check whether --with-vpp was given.
+if test ${with_vpp+y}
+then :
+  withval=$with_vpp;
+else case e in #(
+  e) with_vpp="no" ;;
+esac
+fi
+
+   # Check whether --enable-vpp was given.
+if test ${enable_vpp+y}
+then :
+  enableval=$enable_vpp; as_fn_error $? "Invalid option. Use --with-vpp/--without-vpp instead" "$LINENO" 5
+fi
+
+
+
 # Check whether --with-libwrap was given.
 if test ${with_libwrap+y}
 then :
@@ -27920,6 +27942,584 @@ rm -rf conftest*
         fi
     ;;
     esac
+fi
+
+# VPP data-plane integration
+#
+# When --with-vpp (or --with-vpp=DIR) is given, detect the VPP VAPI headers
+# and libraries and set HAVE_VPP_DATAPLANE.  The interface/route/ARP arch
+# backends are then replaced by VPP VAPI implementations.
+#
+# Required headers (relative to VPP include dir):
+#   vapi/vapi.h                        -- high-level VAPI client
+#   vpp-api/client/stat_client.h       -- stats segment client
+# Required libraries:
+#   vapiclient  vlibmemoryclient  vlibapi  svm  vppinfra  vppapiclient
+
+if test "x$with_vpp" != "xno"; then
+    # Resolve prefix: explicit DIR, or default /usr.
+    if test "x$with_vpp" = "xyes" || test -z "$with_vpp"; then
+        vpp_prefix="/usr"
+    else
+        vpp_prefix="$with_vpp"
+    fi
+
+    vpp_inc="$vpp_prefix/include"
+    vpp_lib="$vpp_prefix/lib"
+
+    netsnmp_save_CPPFLAGS="$CPPFLAGS"
+    netsnmp_save_LDFLAGS="$LDFLAGS"
+    CPPFLAGS="-I$vpp_inc $CPPFLAGS"
+    LDFLAGS="-L$vpp_lib $LDFLAGS"
+
+    ac_fn_c_check_header_compile "$LINENO" "vapi/vapi.h" "ac_cv_header_vapi_vapi_h" "$ac_includes_default"
+if test "x$ac_cv_header_vapi_vapi_h" = xyes
+then :
+
+        ac_fn_c_check_header_compile "$LINENO" "vpp-api/client/stat_client.h" "ac_cv_header_vpp_api_client_stat_client_h" "$ac_includes_default"
+if test "x$ac_cv_header_vpp_api_client_stat_client_h" = xyes
+then :
+
+            # Probe for the primary VPP client library.
+
+ { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for library containing vapi_connect" >&5
+printf %s "checking for library containing vapi_connect... " >&6; }
+if test ${netsnmp_cv_func_vapi_connect_LMIBLIBS+y}
+then :
+  printf %s "(cached) " >&6
+else case e in #(
+  e) netsnmp_func_search_save_LIBS="$LIBS"
+     netsnmp_target_val="$LMIBLIBS"
+          netsnmp_temp_LIBS="${netsnmp_target_val}  ${LIBS}"
+     netsnmp_result=no
+     LIBS="${netsnmp_temp_LIBS}"
+     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.
+   The 'extern "C"' is for builds by C++ compilers;
+   although this is not generally supported in C code supporting it here
+   has little cost and some practical benefit (sr 110532).  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char vapi_connect (void);
+int
+main (void)
+{
+return vapi_connect ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  netsnmp_result="none required"
+else case e in #(
+  e) for netsnmp_cur_lib in vapiclient ; do
+              LIBS="-l${netsnmp_cur_lib} ${netsnmp_temp_LIBS}"
+              cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.
+   The 'extern "C"' is for builds by C++ compilers;
+   although this is not generally supported in C code supporting it here
+   has little cost and some practical benefit (sr 110532).  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char vapi_connect (void);
+int
+main (void)
+{
+return vapi_connect ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  netsnmp_result=-l${netsnmp_cur_lib}
+                   break
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+          done ;;
+esac
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+     LIBS="${netsnmp_func_search_save_LIBS}"
+     netsnmp_cv_func_vapi_connect_LMIBLIBS="${netsnmp_result}" ;;
+esac
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $netsnmp_cv_func_vapi_connect_LMIBLIBS" >&5
+printf "%s\n" "$netsnmp_cv_func_vapi_connect_LMIBLIBS" >&6; }
+ if test "${netsnmp_cv_func_vapi_connect_LMIBLIBS}" != "no" ; then
+    if test "${netsnmp_cv_func_vapi_connect_LMIBLIBS}" != "none required" ; then
+       LMIBLIBS="${netsnmp_result} ${netsnmp_target_val}"
+    fi
+
+                # All companion VPP libraries snmpd needs at link time.
+
+ { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for library containing stat_segment_connect" >&5
+printf %s "checking for library containing stat_segment_connect... " >&6; }
+if test ${netsnmp_cv_func_stat_segment_connect_LMIBLIBS+y}
+then :
+  printf %s "(cached) " >&6
+else case e in #(
+  e) netsnmp_func_search_save_LIBS="$LIBS"
+     netsnmp_target_val="$LMIBLIBS"
+          netsnmp_temp_LIBS="${netsnmp_target_val}  ${LIBS}"
+     netsnmp_result=no
+     LIBS="${netsnmp_temp_LIBS}"
+     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.
+   The 'extern "C"' is for builds by C++ compilers;
+   although this is not generally supported in C code supporting it here
+   has little cost and some practical benefit (sr 110532).  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char stat_segment_connect (void);
+int
+main (void)
+{
+return stat_segment_connect ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  netsnmp_result="none required"
+else case e in #(
+  e) for netsnmp_cur_lib in vppapiclient ; do
+              LIBS="-l${netsnmp_cur_lib} ${netsnmp_temp_LIBS}"
+              cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.
+   The 'extern "C"' is for builds by C++ compilers;
+   although this is not generally supported in C code supporting it here
+   has little cost and some practical benefit (sr 110532).  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char stat_segment_connect (void);
+int
+main (void)
+{
+return stat_segment_connect ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  netsnmp_result=-l${netsnmp_cur_lib}
+                   break
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+          done ;;
+esac
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+     LIBS="${netsnmp_func_search_save_LIBS}"
+     netsnmp_cv_func_stat_segment_connect_LMIBLIBS="${netsnmp_result}" ;;
+esac
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $netsnmp_cv_func_stat_segment_connect_LMIBLIBS" >&5
+printf "%s\n" "$netsnmp_cv_func_stat_segment_connect_LMIBLIBS" >&6; }
+ if test "${netsnmp_cv_func_stat_segment_connect_LMIBLIBS}" != "no" ; then
+    if test "${netsnmp_cv_func_stat_segment_connect_LMIBLIBS}" != "none required" ; then
+       LMIBLIBS="${netsnmp_result} ${netsnmp_target_val}"
+    fi
+
+
+ fi
+
+
+ { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for library containing vl_api_c_string_to_api_string" >&5
+printf %s "checking for library containing vl_api_c_string_to_api_string... " >&6; }
+if test ${netsnmp_cv_func_vl_api_c_string_to_api_string_LMIBLIBS+y}
+then :
+  printf %s "(cached) " >&6
+else case e in #(
+  e) netsnmp_func_search_save_LIBS="$LIBS"
+     netsnmp_target_val="$LMIBLIBS"
+          netsnmp_temp_LIBS="${netsnmp_target_val}  ${LIBS}"
+     netsnmp_result=no
+     LIBS="${netsnmp_temp_LIBS}"
+     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.
+   The 'extern "C"' is for builds by C++ compilers;
+   although this is not generally supported in C code supporting it here
+   has little cost and some practical benefit (sr 110532).  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char vl_api_c_string_to_api_string (void);
+int
+main (void)
+{
+return vl_api_c_string_to_api_string ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  netsnmp_result="none required"
+else case e in #(
+  e) for netsnmp_cur_lib in vlibapi ; do
+              LIBS="-l${netsnmp_cur_lib} ${netsnmp_temp_LIBS}"
+              cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.
+   The 'extern "C"' is for builds by C++ compilers;
+   although this is not generally supported in C code supporting it here
+   has little cost and some practical benefit (sr 110532).  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char vl_api_c_string_to_api_string (void);
+int
+main (void)
+{
+return vl_api_c_string_to_api_string ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  netsnmp_result=-l${netsnmp_cur_lib}
+                   break
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+          done ;;
+esac
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+     LIBS="${netsnmp_func_search_save_LIBS}"
+     netsnmp_cv_func_vl_api_c_string_to_api_string_LMIBLIBS="${netsnmp_result}" ;;
+esac
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $netsnmp_cv_func_vl_api_c_string_to_api_string_LMIBLIBS" >&5
+printf "%s\n" "$netsnmp_cv_func_vl_api_c_string_to_api_string_LMIBLIBS" >&6; }
+ if test "${netsnmp_cv_func_vl_api_c_string_to_api_string_LMIBLIBS}" != "no" ; then
+    if test "${netsnmp_cv_func_vl_api_c_string_to_api_string_LMIBLIBS}" != "none required" ; then
+       LMIBLIBS="${netsnmp_result} ${netsnmp_target_val}"
+    fi
+
+
+ fi
+
+
+ { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for library containing vl_client_connect" >&5
+printf %s "checking for library containing vl_client_connect... " >&6; }
+if test ${netsnmp_cv_func_vl_client_connect_LMIBLIBS+y}
+then :
+  printf %s "(cached) " >&6
+else case e in #(
+  e) netsnmp_func_search_save_LIBS="$LIBS"
+     netsnmp_target_val="$LMIBLIBS"
+          netsnmp_temp_LIBS="${netsnmp_target_val}  ${LIBS}"
+     netsnmp_result=no
+     LIBS="${netsnmp_temp_LIBS}"
+     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.
+   The 'extern "C"' is for builds by C++ compilers;
+   although this is not generally supported in C code supporting it here
+   has little cost and some practical benefit (sr 110532).  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char vl_client_connect (void);
+int
+main (void)
+{
+return vl_client_connect ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  netsnmp_result="none required"
+else case e in #(
+  e) for netsnmp_cur_lib in vlibmemoryclient ; do
+              LIBS="-l${netsnmp_cur_lib} ${netsnmp_temp_LIBS}"
+              cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.
+   The 'extern "C"' is for builds by C++ compilers;
+   although this is not generally supported in C code supporting it here
+   has little cost and some practical benefit (sr 110532).  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char vl_client_connect (void);
+int
+main (void)
+{
+return vl_client_connect ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  netsnmp_result=-l${netsnmp_cur_lib}
+                   break
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+          done ;;
+esac
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+     LIBS="${netsnmp_func_search_save_LIBS}"
+     netsnmp_cv_func_vl_client_connect_LMIBLIBS="${netsnmp_result}" ;;
+esac
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $netsnmp_cv_func_vl_client_connect_LMIBLIBS" >&5
+printf "%s\n" "$netsnmp_cv_func_vl_client_connect_LMIBLIBS" >&6; }
+ if test "${netsnmp_cv_func_vl_client_connect_LMIBLIBS}" != "no" ; then
+    if test "${netsnmp_cv_func_vl_client_connect_LMIBLIBS}" != "none required" ; then
+       LMIBLIBS="${netsnmp_result} ${netsnmp_target_val}"
+    fi
+
+
+ fi
+
+
+ { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for library containing fifo_segment_alloc" >&5
+printf %s "checking for library containing fifo_segment_alloc... " >&6; }
+if test ${netsnmp_cv_func_fifo_segment_alloc_LMIBLIBS+y}
+then :
+  printf %s "(cached) " >&6
+else case e in #(
+  e) netsnmp_func_search_save_LIBS="$LIBS"
+     netsnmp_target_val="$LMIBLIBS"
+          netsnmp_temp_LIBS="${netsnmp_target_val}  ${LIBS}"
+     netsnmp_result=no
+     LIBS="${netsnmp_temp_LIBS}"
+     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.
+   The 'extern "C"' is for builds by C++ compilers;
+   although this is not generally supported in C code supporting it here
+   has little cost and some practical benefit (sr 110532).  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char fifo_segment_alloc (void);
+int
+main (void)
+{
+return fifo_segment_alloc ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  netsnmp_result="none required"
+else case e in #(
+  e) for netsnmp_cur_lib in svm ; do
+              LIBS="-l${netsnmp_cur_lib} ${netsnmp_temp_LIBS}"
+              cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.
+   The 'extern "C"' is for builds by C++ compilers;
+   although this is not generally supported in C code supporting it here
+   has little cost and some practical benefit (sr 110532).  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char fifo_segment_alloc (void);
+int
+main (void)
+{
+return fifo_segment_alloc ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  netsnmp_result=-l${netsnmp_cur_lib}
+                   break
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+          done ;;
+esac
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+     LIBS="${netsnmp_func_search_save_LIBS}"
+     netsnmp_cv_func_fifo_segment_alloc_LMIBLIBS="${netsnmp_result}" ;;
+esac
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $netsnmp_cv_func_fifo_segment_alloc_LMIBLIBS" >&5
+printf "%s\n" "$netsnmp_cv_func_fifo_segment_alloc_LMIBLIBS" >&6; }
+ if test "${netsnmp_cv_func_fifo_segment_alloc_LMIBLIBS}" != "no" ; then
+    if test "${netsnmp_cv_func_fifo_segment_alloc_LMIBLIBS}" != "none required" ; then
+       LMIBLIBS="${netsnmp_result} ${netsnmp_target_val}"
+    fi
+
+
+ fi
+
+
+ { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking for library containing clib_mem_init" >&5
+printf %s "checking for library containing clib_mem_init... " >&6; }
+if test ${netsnmp_cv_func_clib_mem_init_LMIBLIBS+y}
+then :
+  printf %s "(cached) " >&6
+else case e in #(
+  e) netsnmp_func_search_save_LIBS="$LIBS"
+     netsnmp_target_val="$LMIBLIBS"
+          netsnmp_temp_LIBS="${netsnmp_target_val}  ${LIBS}"
+     netsnmp_result=no
+     LIBS="${netsnmp_temp_LIBS}"
+     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.
+   The 'extern "C"' is for builds by C++ compilers;
+   although this is not generally supported in C code supporting it here
+   has little cost and some practical benefit (sr 110532).  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char clib_mem_init (void);
+int
+main (void)
+{
+return clib_mem_init ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  netsnmp_result="none required"
+else case e in #(
+  e) for netsnmp_cur_lib in vppinfra ; do
+              LIBS="-l${netsnmp_cur_lib} ${netsnmp_temp_LIBS}"
+              cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.
+   The 'extern "C"' is for builds by C++ compilers;
+   although this is not generally supported in C code supporting it here
+   has little cost and some practical benefit (sr 110532).  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char clib_mem_init (void);
+int
+main (void)
+{
+return clib_mem_init ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"
+then :
+  netsnmp_result=-l${netsnmp_cur_lib}
+                   break
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+          done ;;
+esac
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam \
+    conftest$ac_exeext conftest.$ac_ext
+     LIBS="${netsnmp_func_search_save_LIBS}"
+     netsnmp_cv_func_clib_mem_init_LMIBLIBS="${netsnmp_result}" ;;
+esac
+fi
+{ printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: $netsnmp_cv_func_clib_mem_init_LMIBLIBS" >&5
+printf "%s\n" "$netsnmp_cv_func_clib_mem_init_LMIBLIBS" >&6; }
+ if test "${netsnmp_cv_func_clib_mem_init_LMIBLIBS}" != "no" ; then
+    if test "${netsnmp_cv_func_clib_mem_init_LMIBLIBS}" != "none required" ; then
+       LMIBLIBS="${netsnmp_result} ${netsnmp_target_val}"
+    fi
+
+
+ fi
+
+
+printf "%s\n" "#define HAVE_VPP_DATAPLANE 1" >>confdefs.h
+
+                EXTERNAL_MIBGROUP_INCLUDES="$EXTERNAL_MIBGROUP_INCLUDES -I$vpp_inc"
+
+ else
+
+                as_fn_error $? "--with-vpp: libvapiclient not found under $vpp_lib" "$LINENO" 5
+
+ fi
+
+
+else case e in #(
+  e) as_fn_error $? "--with-vpp: vpp-api/client/stat_client.h not found under $vpp_inc" "$LINENO" 5 ;;
+esac
+fi
+
+
+else case e in #(
+  e) as_fn_error $? "--with-vpp: vapi/vapi.h not found under $vpp_inc" "$LINENO" 5 ;;
+esac
+fi
+
+    CPPFLAGS="$netsnmp_save_CPPFLAGS"
+    LDFLAGS="$netsnmp_save_LDFLAGS"
 fi
 
 # -*- autoconf -*-

@@ -28,7 +28,14 @@ config_require(if-mib/data_access/interface);
 
 config_exclude(mibII/interfaces);
 
-#if defined(linux)
+#if defined(HAVE_VPP_DATAPLANE)
+/*
+ * VPP appliance: replace the libnl-3/ioctl Linux backend with the VPP
+ * VAPI backend.  interface_vpp.c provides all netsnmp_arch_interface_*
+ * and netsnmp_arch_set_* functions.
+ */
+config_require(if-mib/data_access/interface_vpp);
+#elif defined(linux)
 config_require(util_funcs);
 config_require(if-mib/data_access/interface_linux);
 config_require(if-mib/data_access/interface_ioctl);

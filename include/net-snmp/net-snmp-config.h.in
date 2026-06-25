@@ -1547,6 +1547,10 @@
 /* Define this macro if EVP_MD_CTX_init() returns void */
 #undef HAVE_VOID_EVP_MD_CTX_INIT
 
+/* Define to 1 to replace kernel interface/route/ARP lookups with VPP VAPI
+   calls (interface_vpp.c arch backend) */
+#undef HAVE_VPP_DATAPLANE
+
 /* Define to 1 if you have the 'vsnprintf' function. */
 #undef HAVE_VSNPRINTF
 

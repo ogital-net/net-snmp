@@ -1,0 +1,207 @@
+VPP-DATAPLANE-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+    MODULE-IDENTITY, OBJECT-TYPE, Counter64, Gauge32
+        FROM SNMPv2-SMI
+    MODULE-COMPLIANCE, OBJECT-GROUP
+        FROM SNMPv2-CONF
+    netSnmpExperimental
+        FROM NET-SNMP-MIB;
+
+vppDataplaneMIB MODULE-IDENTITY
+    LAST-UPDATED "202506250000Z"
+    ORGANIZATION "VPP SNMP Integration"
+    CONTACT-INFO "latigo-gw project"
+    DESCRIPTION
+        "VPP data-plane health statistics that complement standard MIBs.
+         ARP/ND counters detect broadcast storms and resolution failures.
+         Memory/buffer stats enable proactive alerting on resource exhaustion.
+         These OIDs do NOT replace HOST-RESOURCES-MIB — host memory and
+         disk entries remain unchanged."
+    REVISION "202506250000Z"
+    DESCRIPTION "Initial version."
+    ::= { netSnmpExperimental 9696 }
+
+-- ======================================================================
+-- ARP / ND Statistics  (.1.3.6.1.4.1.8072.9999.9696.1)
+-- ======================================================================
+
+vppArpStats OBJECT IDENTIFIER ::= { vppDataplaneMIB 1 }
+
+vppArpRxRequests OBJECT-TYPE
+    SYNTAX      Counter64
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Total ARP requests received across all interfaces.
+                 A sudden spike indicates a broadcast storm or scanning."
+    ::= { vppArpStats 1 }
+
+vppArpRxReplies OBJECT-TYPE
+    SYNTAX      Counter64
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Total ARP replies received."
+    ::= { vppArpStats 2 }
+
+vppArpRxGratuitous OBJECT-TYPE
+    SYNTAX      Counter64
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Gratuitous ARP packets received. Spikes may indicate
+                 IP conflicts or failover events."
+    ::= { vppArpStats 3 }
+
+vppArpTxRequests OBJECT-TYPE
+    SYNTAX      Counter64
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "ARP requests transmitted by VPP."
+    ::= { vppArpStats 4 }
+
+vppArpTxReplies OBJECT-TYPE
+    SYNTAX      Counter64
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "ARP replies transmitted by VPP."
+    ::= { vppArpStats 5 }
+
+vppArpTxGratuitous OBJECT-TYPE
+    SYNTAX      Counter64
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Gratuitous ARP packets transmitted."
+    ::= { vppArpStats 6 }
+
+vppNdRxRequests OBJECT-TYPE
+    SYNTAX      Counter64
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "IPv6 Neighbor Solicitation messages received."
+    ::= { vppArpStats 7 }
+
+vppNdRxReplies OBJECT-TYPE
+    SYNTAX      Counter64
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "IPv6 Neighbor Advertisement messages received."
+    ::= { vppArpStats 8 }
+
+vppNdRxGratuitous OBJECT-TYPE
+    SYNTAX      Counter64
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Unsolicited IPv6 NA messages received."
+    ::= { vppArpStats 9 }
+
+vppNdTxRequests OBJECT-TYPE
+    SYNTAX      Counter64
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "IPv6 Neighbor Solicitation messages transmitted."
+    ::= { vppArpStats 10 }
+
+vppNdTxReplies OBJECT-TYPE
+    SYNTAX      Counter64
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "IPv6 Neighbor Advertisement messages transmitted."
+    ::= { vppArpStats 11 }
+
+vppNdTxGratuitous OBJECT-TYPE
+    SYNTAX      Counter64
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Unsolicited IPv6 NA messages transmitted."
+    ::= { vppArpStats 12 }
+
+-- ======================================================================
+-- VPP Memory and Buffer Pool  (.1.3.6.1.4.1.8072.9999.9696.2)
+-- ======================================================================
+
+vppMemory OBJECT IDENTIFIER ::= { vppDataplaneMIB 2 }
+
+vppMainHeapTotal OBJECT-TYPE
+    SYNTAX      Gauge32
+    UNITS       "KB"
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "VPP main heap total size in kilobytes.
+                 This is VPP's internal memory, NOT host RAM."
+    ::= { vppMemory 1 }
+
+vppMainHeapUsed OBJECT-TYPE
+    SYNTAX      Gauge32
+    UNITS       "KB"
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "VPP main heap currently used (KB).
+                 Alert when used/total > 80%."
+    ::= { vppMemory 2 }
+
+vppMainHeapFree OBJECT-TYPE
+    SYNTAX      Gauge32
+    UNITS       "KB"
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "VPP main heap free space (KB)."
+    ::= { vppMemory 3 }
+
+vppBufferPoolAvailable OBJECT-TYPE
+    SYNTAX      Gauge32
+    UNITS       "buffers"
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Number of free packet buffers available in the default pool.
+                 When this approaches zero, VPP starts dropping packets."
+    ::= { vppMemory 4 }
+
+vppBufferPoolUsed OBJECT-TYPE
+    SYNTAX      Gauge32
+    UNITS       "buffers"
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Number of packet buffers currently in use."
+    ::= { vppMemory 5 }
+
+vppBufferPoolCached OBJECT-TYPE
+    SYNTAX      Gauge32
+    UNITS       "buffers"
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Number of packet buffers in per-thread caches."
+    ::= { vppMemory 6 }
+
+-- ======================================================================
+-- Conformance
+-- ======================================================================
+
+vppDataplaneConformance OBJECT IDENTIFIER ::= { vppDataplaneMIB 10 }
+
+vppArpStatsGroup OBJECT-GROUP
+    OBJECTS {
+        vppArpRxRequests, vppArpRxReplies, vppArpRxGratuitous,
+        vppArpTxRequests, vppArpTxReplies, vppArpTxGratuitous,
+        vppNdRxRequests, vppNdRxReplies, vppNdRxGratuitous,
+        vppNdTxRequests, vppNdTxReplies, vppNdTxGratuitous
+    }
+    STATUS current
+    DESCRIPTION "ARP and IPv6 ND statistics from VPP data plane."
+    ::= { vppDataplaneConformance 1 }
+
+vppMemoryGroup OBJECT-GROUP
+    OBJECTS {
+        vppMainHeapTotal, vppMainHeapUsed, vppMainHeapFree,
+        vppBufferPoolAvailable, vppBufferPoolUsed, vppBufferPoolCached
+    }
+    STATUS current
+    DESCRIPTION "VPP internal memory and buffer pool utilization."
+    ::= { vppDataplaneConformance 2 }
+
+vppDataplaneCompliance MODULE-COMPLIANCE
+    STATUS current
+    DESCRIPTION "Full compliance for VPP dataplane stats."
+    MODULE
+        MANDATORY-GROUPS { vppArpStatsGroup, vppMemoryGroup }
+    ::= { vppDataplaneConformance 3 }
+
+END

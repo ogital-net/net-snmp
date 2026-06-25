@@ -18,7 +18,9 @@
  *    be handled in the *_hpux.h header file.
  */
 config_require(ip-mib/data_access/defaultrouter_common);
-#if defined( linux )
+#if defined(HAVE_VPP_DATAPLANE)
+config_require(ip-mib/data_access/defaultrouter_vpp);
+#elif defined( linux )
 config_require(ip-mib/data_access/defaultrouter_linux);
 #elif defined( freebsd4 ) || defined( netbsd5 ) || defined( openbsd ) || defined( dragonfly ) || defined( darwin )
 config_require(ip-mib/data_access/defaultrouter_sysctl);

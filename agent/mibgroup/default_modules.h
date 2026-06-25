@@ -55,4 +55,12 @@ config_add_mib(DISMAN-SCHEDULE-MIB);
     config_require(host);
 #endif
 
+/* VPP data-plane health MIBs (only when built --with-vpp) */
+#ifdef HAVE_VPP_DATAPLANE
+config_require(nat-mib/nat_vpp);
+config_require(vpp-stats/vpp_stats);
+config_add_mib(NATV2-MIB);
+config_add_mib(VPP-DATAPLANE-MIB);
+#endif
+
 #endif

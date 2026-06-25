@@ -213,3 +213,66 @@ if test "x$with_nl" != "xno"; then
     ;;
     esac
 fi
+
+# VPP data-plane integration
+#
+# When --with-vpp (or --with-vpp=DIR) is given, detect the VPP VAPI headers
+# and libraries and set HAVE_VPP_DATAPLANE.  The interface/route/ARP arch
+# backends are then replaced by VPP VAPI implementations.
+#
+# Required headers (relative to VPP include dir):
+#   vapi/vapi.h                        -- high-level VAPI client
+#   vpp-api/client/stat_client.h       -- stats segment client
+# Required libraries:
+#   vapiclient  vlibmemoryclient  vlibapi  svm  vppinfra  vppapiclient
+
+if test "x$with_vpp" != "xno"; then
+    # Resolve prefix: explicit DIR, or default /usr.
+    if test "x$with_vpp" = "xyes" || test -z "$with_vpp"; then
+        vpp_prefix="/usr"
+    else
+        vpp_prefix="$with_vpp"
+    fi
+
+    vpp_inc="$vpp_prefix/include"
+    vpp_lib="$vpp_prefix/lib"
+
+    netsnmp_save_CPPFLAGS="$CPPFLAGS"
+    netsnmp_save_LDFLAGS="$LDFLAGS"
+    CPPFLAGS="-I$vpp_inc $CPPFLAGS"
+    LDFLAGS="-L$vpp_lib $LDFLAGS"
+
+    AC_CHECK_HEADER([vapi/vapi.h],
+      [
+        AC_CHECK_HEADER([vpp-api/client/stat_client.h],
+          [
+            # Probe for the primary VPP client library.
+            NETSNMP_SEARCH_LIBS(vapi_connect, vapiclient,
+              [
+                # All companion VPP libraries snmpd needs at link time.
+                NETSNMP_SEARCH_LIBS(stat_segment_connect, vppapiclient,
+                  [], [], [], [LMIBLIBS])
+                NETSNMP_SEARCH_LIBS(vl_api_c_string_to_api_string, vlibapi,
+                  [], [], [], [LMIBLIBS])
+                NETSNMP_SEARCH_LIBS(vl_client_connect, vlibmemoryclient,
+                  [], [], [], [LMIBLIBS])
+                NETSNMP_SEARCH_LIBS(fifo_segment_alloc, svm,
+                  [], [], [], [LMIBLIBS])
+                NETSNMP_SEARCH_LIBS(clib_mem_init, vppinfra,
+                  [], [], [], [LMIBLIBS])
+                AC_DEFINE([HAVE_VPP_DATAPLANE], [1],
+                  [Define to 1 to replace kernel interface/route/ARP lookups
+                   with VPP VAPI calls (interface_vpp.c arch backend)])
+                EXTERNAL_MIBGROUP_INCLUDES="$EXTERNAL_MIBGROUP_INCLUDES -I$vpp_inc"
+              ],
+              [
+                AC_MSG_ERROR([--with-vpp: libvapiclient not found under $vpp_lib])
+              ],
+              [], [LMIBLIBS])
+          ],
+          [AC_MSG_ERROR([--with-vpp: vpp-api/client/stat_client.h not found under $vpp_inc])])
+      ],
+      [AC_MSG_ERROR([--with-vpp: vapi/vapi.h not found under $vpp_inc])])
+    CPPFLAGS="$netsnmp_save_CPPFLAGS"
+    LDFLAGS="$netsnmp_save_LDFLAGS"
+fi

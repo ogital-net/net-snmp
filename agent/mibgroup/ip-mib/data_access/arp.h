@@ -18,7 +18,9 @@
  *    be handled in the *_hpux.h header file.
  */
 config_require(ip-mib/data_access/arp_common);
-#if defined( HAVE_LINUX_RTNETLINK_H )
+#if defined(HAVE_VPP_DATAPLANE)
+config_require(ip-mib/data_access/arp_vpp);
+#elif defined( HAVE_LINUX_RTNETLINK_H )
 config_require(ip-mib/data_access/arp_netlink);
 #elif defined( linux )
 config_require(ip-mib/data_access/arp_linux);

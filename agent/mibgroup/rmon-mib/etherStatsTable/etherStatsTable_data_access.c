@@ -204,6 +204,10 @@ etherStatsTable_container_shutdown(netsnmp_container * container_ptr)
 int
 etherStatsTable_container_load(netsnmp_container * container)
 {
+#if defined(HAVE_VPP_DATAPLANE)
+    extern int etherStatsTable_container_load_vpp(netsnmp_container *);
+    return etherStatsTable_container_load_vpp(container);
+#else
     size_t          count = 0;
 
     /*
@@ -349,6 +353,7 @@ etherStatsTable_container_load(netsnmp_container * container)
                "inserted %" NETSNMP_PRIz "d records\n", count));
 
     return MFD_SUCCESS;
+#endif /* !HAVE_VPP_DATAPLANE */
 }
                                /* etherStatsTable_container_load */
 
